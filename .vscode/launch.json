@@ -1,0 +1,28 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "(gdb) 启动",
+            "type": "cppdbg",
+            "request": "launch",
+            // "program": "/home/zyp/ADIS16505_RPi/ADIS16505_RPi/bin/RecordData",
+            // "program": "/home/zyp/ADIS16505_RPi/ADIS16505_RPi/bin/test",
+            // "program": "/home/zyp/ADIS16505_RPi/ADIS16505_RPi/bin/testADI",
+            "program": "/home/zyp/ADIS16505_RPi/ADIS16505_RPi/bin/testWiringPi",
+            "stopAtEntry": false,
+            // "preLaunchTask": "build",//这一步的build与tasks.json中的type名字相同
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "externalConsole": false,
+            "miDebuggerPath": "${workspaceFolder}/sudo_gdb",
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "为 gdb 启用整齐打印",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ]
+        }
+    ]
+}
