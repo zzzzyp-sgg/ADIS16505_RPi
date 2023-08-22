@@ -42,7 +42,7 @@ public:
         /* 模式2,CPOL = 1 (polarity), CPHA = 1 (phase) */
         bcm2835_spi_setDataMode(BCM2835_SPI_MODE3);
         /* 时钟分频 */
-        bcm2835_spi_setClockDivider(BCM2835_SPI_CLOCK_DIVIDER_64);
+        bcm2835_spi_setClockDivider(BCM2835_SPI_CLOCK_DIVIDER_256);
 
         /* 选中设备，将这个引脚设置为输出模式 */
         bcm2835_gpio_fsel(CS_PIN, BCM2835_GPIO_FSEL_OUTP);
@@ -79,10 +79,10 @@ private:
     /* 初始化设备 */
     void initADIS16505() {
         /* 设备重启 */
-        // bcm2835_gpio_write(CS_PIN, LOW);
-        // bcm2835_delayMicroseconds(1000);
-        // bcm2835_gpio_write(CS_PIN, HIGH);
-        // bcm2835_delayMicroseconds(1000);
+        bcm2835_gpio_write(CS_PIN, LOW);
+        bcm2835_delay(1000);
+        bcm2835_gpio_write(CS_PIN, HIGH);
+        bcm2835_delay(1000);
 
         /* Enable 32-bit burst output */
         adisSet32bitBurstConfig();
@@ -96,7 +96,7 @@ private:
 
     /* 读取某个地址的寄存器的值 */
     uint16_t adisReadReg(uint16_t addr) {
-        if (addr = BURST_CMD)
+        if (addr == BURST_CMD)
             return false;
 
         uint16_t val = adisBlockingRegRead(addr);
@@ -104,14 +104,18 @@ private:
     }
 
     bool adisSet32bitBurstConfig() {
-        spiEnableNss();
+        // spiEnableNss();
+        bcm2835_gpio_write(CS_PIN, LOW);
         uint16_t tmp = adisBlockingRegRead(MSC_CTRL);
-        spiDisableNss();
+        // spiDisableNss();
+        bcm2835_gpio_write(CS_PIN, HIGH);
         tmp |= 1 << 9;
 	    // adisRegWrite16bit(MSC_CTRL, tmp);
         adisWriteReg(MSC_CTRL, tmp);
 	    // tmp = adisBlockingRegRead(MSC_CTRL);
-        tmp = adisReadReg(MSC_CTRL);
+        bcm2835_gpio_write(CS_PIN, LOW);
+        tmp = adisBlockingRegRead(MSC_CTRL);
+        bcm2835_gpio_write(CS_PIN, HIGH);
 	    bcm2835_delay(1); //This delay allows the setting to take hold
 	    return true;
     }
@@ -137,21 +141,15 @@ private:
         if (addr > 0x7F)
             return 0;
 
-        uint16_t rBuf = 0;
+        uint8_t rdat[2] = {0, 0};
+        // bcm2835_gpio_write(CS_PIN, LOW);
+        uint8_t wd[2] = {addr & 0xFF, (addr >> 8) & 0xFF};
 
-        /* 告诉设备希望读取的是哪个寄存器 */
-        spiEnableNss();
-        spiWriteWord(addr << 8);
-        spiDisableNss();
-        bcm2835_delay(tSTALL);
+        bcm2835_spi_transfernb(reinterpret_cast<char*>(wd), reinterpret_cast<char*>(rdat), 2);
+        // bcm2835_gpio_write(CS_PIN, HIGH);
 
-        /* 读取数据 */
-        spiEnableNss();
-        spiReadWord(&rBuf, 1);
-        spiDisableNss();
-        bcm2835_delay(tSTALL);
-
-        return rBuf;       
+        uint16_t rBuf = (rdat[1] << 8) | rdat[0];
+        return rBuf;      
     }
 
     /* 向寄存器写8bit的数据 */
@@ -355,13 +353,13 @@ private:
     }
 
     uint16_t adisFlameTandR(uint16_t trans) {
-        spiEnableNss();
+        bcm2835_gpio_write(CS_PIN, LOW);
 
         uint16_t result = 0;
 
         bcm2835_spi_transfernb(reinterpret_cast<char*>(&trans), reinterpret_cast<char*>(&result), 2);
 
-        spiDisableNss();
+        bcm2835_gpio_write(CS_PIN, LOW);
         bcm2835_delay(tSTALL);
 
         return result;

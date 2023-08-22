@@ -12,16 +12,7 @@
 #include <cstdint>
 
 /* 芯片选择的引脚 */
-#define CS_PIN RPI_GPIO_P1_18
-
-/* TODO 单独给DR一个引脚 */
-#define DR_PIN RPI_GPIO_P1_21
-
-/* 定义DEBUG_PIN2的GPIO引脚编号 */ 
-#define DEBUG_PIN2 RPI_GPIO_P1_17
-
-/* 定义DEBUG_PIN2高电平 */
-#define DEBUG_PIN2_HIGH bcm2835_gpio_write(DEBUG_PIN2, HIGH)
+#define CS_PIN RPI_GPIO_P1_07
 
 /* 超时时间 */
 #define TIME_OUT 20

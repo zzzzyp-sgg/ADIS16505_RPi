@@ -18,7 +18,7 @@ int main(int argc, char **argv) {
 
     if(!adi.setUp()) {
         printf("ADI connection failed.\n");
-        bcm2835_delay(5000);
+        bcm2835_delay(1000);
     } else {
         uint16_t rbuf[18];
 	    memset(rbuf,0,sizeof(rbuf));
