@@ -29,7 +29,8 @@ int main(int argc, char **argv) {
     /* 模式3,CPOL = 1 (polarity), CPHA = 1 (phase) */
     bcm2835_spi_setDataMode(BCM2835_SPI_MODE3);
     /* 时钟分频 */
-    bcm2835_spi_setClockDivider(BCM2835_SPI_CLOCK_DIVIDER_256);
+    // bcm2835_spi_setClockDivider(BCM2835_SPI_CLOCK_DIVIDER_256);
+    bcm2835_spi_set_speed_hz(1000000);
     bcm2835_gpio_fsel(ADI_PIN, BCM2835_GPIO_FSEL_OUTP);
     
     /* 重启设备 */
@@ -38,22 +39,31 @@ int main(int argc, char **argv) {
     bcm2835_gpio_write(ADI_PIN, HIGH);
     bcm2835_delay(1000);
 
-    bcm2835_gpio_write(ADI_PIN, LOW);
     // Read PROD_ID register
     uint8_t rdat[2] = {0, 0};
     uint16_t addr = 0x72;
     addr = addr << 8;
-    uint8_t wd[2] = {addr & 0xFF, (addr >> 8) & 0xFF};
-
-    bcm2835_spi_transfernb(reinterpret_cast<char*>(wd), reinterpret_cast<char*>(rdat), 2); // 发送和接收数据
-
+    uint8_t wd[2] = {(addr >> 8) & 0xFF, addr & 0xFF};
+    // 启动后先随便读一个
+    bcm2835_gpio_write(ADI_PIN, LOW);
+    //bcm2835_delayMicroseconds(2);
+    bcm2835_spi_transfernb(reinterpret_cast<char*>(wd), reinterpret_cast<char*>(rdat), sizeof(wd)); // 发送和接收数据
     bcm2835_gpio_write(ADI_PIN, HIGH);
+    bcm2835_delayMicroseconds(16);
+
+    for (int i = 0; i < 10; i++) {
+      // 循环读取，检查下有没有问题
+      bcm2835_gpio_write(ADI_PIN, LOW);
+      bcm2835_spi_transfernb(reinterpret_cast<char*>(wd), reinterpret_cast<char*>(rdat), sizeof(wd)); // 发送和接收数据
+      bcm2835_gpio_write(ADI_PIN, HIGH);
+      bcm2835_delayMicroseconds(16);
+
+      uint16_t pord_id = (rdat[0] << 8) | rdat[1];
+      printf("Value is:%u\n", pord_id);
+    }
 
     bcm2835_spi_end();
     bcm2835_close();
-
-    uint16_t pord_id = (rdat[1] << 8) | rdat[0];
-    printf("Value is:%u\n", pord_id);
 
     return 0;
 }

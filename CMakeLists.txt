@@ -11,11 +11,13 @@ include_directories(${PROJECT_SOURCE_DIR}/include)
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/bin)
 
-add_executable(test test.cpp)
+# add_executable(testBorL src/testBorL.cpp)
 
-add_executable(RecordData RecordData.cpp src/Spi.cpp)
+# add_executable(test test.cpp)
+
+# add_executable(RecordData RecordData.cpp src/Spi.cpp)
 
 add_executable(testADI testADI.cpp)
 
-# add_executable(testWiringPi testWiringPi.cpp)
-# target_link_libraries(testWiringPi -lwiringPi)
+add_executable(testWiringPi testWiringPi.cpp)
+target_link_libraries(testWiringPi -lwiringPi)
