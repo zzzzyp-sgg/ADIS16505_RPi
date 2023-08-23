@@ -58,8 +58,8 @@ int main(int argc, char **argv) {
       bcm2835_gpio_write(ADI_PIN, HIGH);
       bcm2835_delayMicroseconds(16);
 
-      uint16_t pord_id = (rdat[0] << 8) | rdat[1];
-      printf("Value is:%u\n", pord_id);
+      uint16_t prod_id = (rdat[0] << 8) | rdat[1];
+      printf("Value is:%u\n", prod_id);
     }
 
     bcm2835_spi_end();
