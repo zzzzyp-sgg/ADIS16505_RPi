@@ -23,6 +23,9 @@ static uint8_t ADIS_Burst_Packet [34] = {0x00,0x68,0x00,0x00,0x00,0x00,0x00,0x00
 
 static uint8_t ADIS_Burst_Packet_Size = 34;
 
+#define CS_LOW   bcm2835_gpio_write(CS_PIN, LOW)
+#define CS_HIGH  bcm2835_gpio_write(CS_PIN, HIGH)
+
 class ADIS16505 {
 public:
     /* 角速度和加速度变量 */
@@ -46,9 +49,7 @@ public:
 
         /* 选中设备，将这个引脚设置为输出模式 */
         bcm2835_gpio_fsel(CS_PIN, BCM2835_GPIO_FSEL_OUTP);
-        bcm2835_gpio_set(CS_PIN); // 设备未选中
-
-        // bcm2835_gpio_clr(CS_PIN);
+        // bcm2835_gpio_set(CS_PIN); 这里是设备未选中，我感觉是可以不用的
 
         /* 初始化设备 */
         initADIS16505();
@@ -77,15 +78,27 @@ public:
     }
 private:
     /* 初始化设备 */
-    void initADIS16505() {
+    bool initADIS16505() {
         /* 设备重启 */
-        bcm2835_gpio_write(CS_PIN, LOW);
+        CS_LOW;
         bcm2835_delay(1000);
-        bcm2835_gpio_write(CS_PIN, HIGH);
+        CS_HIGH;
         bcm2835_delay(1000);
 
+        // 启动后先随便读一个
+        uint8_t rdat[2] = {0, 0};
+        uint8_t wd[2] = {0x72, 0x00};
+        CS_LOW;
+        bcm2835_spi_transfernb(reinterpret_cast<char*>(wd), reinterpret_cast<char*>(rdat), sizeof(wd)); // 发送和接收数据
+        CS_HIGH;
+        bcm2835_delayMicroseconds(tSTALL);
+
+        /* 检查和设备是否连接成功 */
+        bool isConnected = adisIsConnected();
+        if (!isConnected) return false;
+
         /* Enable 32-bit burst output */
-        adisSet32bitBurstConfig();
+        // adisSet32bitBurstConfig();
 
         /* 设置输出频率, output_rate=sample_rate/(n+1) */
         adisSetSampleRate(9);
@@ -94,30 +107,39 @@ private:
         adisHardwareFilterSelect(1);
     }
 
+    /* 通过检查PROD_ID, 判断是否连接成功 */
+    bool adisIsConnected() {
+        uint16_t prodId = adisReadReg(PROD_ID);
+        auto val = (prodId == 16505);
+        return val;
+    }
+    
     /* 读取某个地址的寄存器的值 */
     uint16_t adisReadReg(uint16_t addr) {
         if (addr == BURST_CMD)
             return false;
 
         uint16_t val = adisBlockingRegRead(addr);
+        bcm2835_delayMicroseconds(tSTALL);
         return val;
     }
 
+    /* 这里设置的是连续读取得到的是增量还是加速度形式 */
     bool adisSet32bitBurstConfig() {
-        // spiEnableNss();
-        bcm2835_gpio_write(CS_PIN, LOW);
-        uint16_t tmp = adisBlockingRegRead(MSC_CTRL);
-        // spiDisableNss();
-        bcm2835_gpio_write(CS_PIN, HIGH);
+        CS_LOW;
+        uint16_t tmp = adisReadReg(MSC_CTRL);
+        CS_HIGH;
         tmp |= 1 << 9;
-	    // adisRegWrite16bit(MSC_CTRL, tmp);
-        adisWriteReg(MSC_CTRL, tmp);
+	    adisRegWrite16bit(MSC_CTRL, tmp);
+        // adisWriteReg(MSC_CTRL, tmp);
 	    // tmp = adisBlockingRegRead(MSC_CTRL);
-        bcm2835_gpio_write(CS_PIN, LOW);
-        tmp = adisBlockingRegRead(MSC_CTRL);
-        bcm2835_gpio_write(CS_PIN, HIGH);
-	    bcm2835_delay(1); //This delay allows the setting to take hold
-	    return true;
+        CS_LOW;
+        uint16_t tmp_ = adisReadReg(MSC_CTRL);
+        CS_HIGH;
+        // This delay allows the setting to take hold
+	    // bcm2835_delay(1);
+	    bool res = (tmp_ == tmp);
+        return res;
     }
 
     /* 非blocking(阻塞)模式下读取对应地址的数据 */
@@ -143,12 +165,12 @@ private:
 
         uint8_t rdat[2] = {0, 0};
         // bcm2835_gpio_write(CS_PIN, LOW);
-        uint8_t wd[2] = {addr & 0xFF, (addr >> 8) & 0xFF};
+        uint8_t wd[2] = {(addr >> 8) & 0xFF, addr & 0xFF};
 
-        bcm2835_spi_transfernb(reinterpret_cast<char*>(wd), reinterpret_cast<char*>(rdat), 2);
+        bcm2835_spi_transfernb(reinterpret_cast<char*>(wd), reinterpret_cast<char*>(rdat), sizeof(wd));
         // bcm2835_gpio_write(CS_PIN, HIGH);
 
-        uint16_t rBuf = (rdat[1] << 8) | rdat[0];
+        uint16_t rBuf = (rdat[0] << 8) | rdat[1];
         return rBuf;      
     }
 
@@ -159,9 +181,9 @@ private:
 	    txBuf = ((regAddr | 0x80) << 8) | (regData & 0xFF);
 
 	    /* 向外部设备写入数据，将之前组合好的数据字 txBuf 发送到设备 */ 
-	    spiEnableNss();
+	    CS_LOW;
 	    spiWriteWord(txBuf);
-	    spiDisableNss();
+	    CS_HIGH;
 
 	    bcm2835_delay(tSTALL);
 
@@ -180,7 +202,7 @@ private:
 
     bool adisHardwareFilterSelect(int dat) {
 	    // adisRegWrite16bit(FILT_CTRL, dat); // Set digital filter
-        adisWriteReg(FILT_CTRL, dat);
+        adisRegWrite16bit(FILT_CTRL, dat);
 	    return true;
     }
 
@@ -300,13 +322,14 @@ private:
     }
 
     /* 设置采样频率 */
-    bool adisSetSampleRate(int16_t n) {
+    bool adisSetSampleRate(uint16_t n) {
         /* 设置DEC_RATE，也就是控制采样频率 */
-        adisWriteReg(DEC_RATE, n);
+        adisRegWrite16bit(DEC_RATE, n);
         // adisRegWrite16bit(DEC_RATE, n);
+        uint16_t tmp = adisReadReg(DEC_RATE);
 
         /* 输出频率 */
-        frequency = 2000 / (1 + n);
+        frequency = 2000 / (1 + tmp);
 
         return true;
     }
@@ -342,27 +365,6 @@ private:
         gyroData[1] = gyro_raw[1];
         gyroData[2] = gyro_raw[2];
         float* pointf = (float*)&gyroData;
-    }
-
-    /* 向寄存器写值 */
-    int8_t adisWriteReg(uint8_t addr,uint8_t value) {
-        addr|=0x80;//写数据的掩码
-	    uint16_t Tx_tmp=(addr<<8) | value;
-	    adisFlameTandR(Tx_tmp);
-	    return 0;
-    }
-
-    uint16_t adisFlameTandR(uint16_t trans) {
-        bcm2835_gpio_write(CS_PIN, LOW);
-
-        uint16_t result = 0;
-
-        bcm2835_spi_transfernb(reinterpret_cast<char*>(&trans), reinterpret_cast<char*>(&result), 2);
-
-        bcm2835_gpio_write(CS_PIN, LOW);
-        bcm2835_delay(tSTALL);
-
-        return result;
     }
 };
 
