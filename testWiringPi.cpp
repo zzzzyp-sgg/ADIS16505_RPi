@@ -2,6 +2,7 @@
 #include <cstring>
 #include <cstdint>
 #include <wiringPi.h>
+#include <iostream>
 #include <wiringPiSPI.h>
 
 #define CS_PIN      11
@@ -25,13 +26,12 @@ int main(int argc, char **argv) {
     
     /* 重启设备 */
     digitalWrite(CS_PIN, LOW);
-    delayMicroseconds(1000);
+    delay(1000);
     digitalWrite(CS_PIN, HIGH);
-    delayMicroseconds(1000);
+    delay(1000);
 
     digitalWrite(CS_PIN, LOW);
     // Read PROD_ID register
-    uint8_t rdat[2] = {0, 0};
     uint16_t addr = 0x72;
     addr = addr << 8;
     uint8_t wd[2] = {static_cast<uint8_t>(addr & 0xFF), static_cast<uint8_t>((addr >> 8) & 0xFF)};
@@ -40,7 +40,8 @@ int main(int argc, char **argv) {
 
     digitalWrite(CS_PIN, HIGH);
 
-    int pord_id = (rdat[1] << 8) | rdat[0];
+    std::cout << (int)wd[0] << "    " << (int)wd[1] << std::endl;
+    int pord_id = (wd[1] << 8) | wd[0];
     printf("Value is: %d\n", pord_id);
 
     return 0;
