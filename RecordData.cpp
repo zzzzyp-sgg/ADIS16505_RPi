@@ -4,7 +4,7 @@
  * @date    2023-08-08
 */
 
-#include "ADIS16505.h"
+#include "ADIS16505.hpp"
 #include <fstream>
 #include <cstring>
 #include <iostream>
@@ -18,15 +18,9 @@ int main(int argc, char **argv) {
 
     if(!adi.setUp()) {
         printf("ADI connection failed.\n");
-        bcm2835_delay(1000);
+        bcm2835_delay(500);
     } else {
-        uint16_t rbuf[18];
-	    memset(rbuf,0,sizeof(rbuf));
-
-        adi.adisSingleRead(rbuf);
-
-        std::cout << "test: x_acc = " << adi.acc_raw[0] << std::endl;
-
+        adi.adisSingleRead();
         bcm2835_gpio_set(CS_PIN);
         /* 清除工作区 */
         bcm2835_spi_end();
