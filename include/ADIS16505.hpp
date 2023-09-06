@@ -23,9 +23,20 @@ static uint8_t ADIS_Burst_Packet [34] = {0x00,0x68,0x00,0x00,0x00,0x00,0x00,0x00
 
 static uint8_t ADIS_Burst_Packet_Size = 34;
 
-#define CS_LOW   bcm2835_gpio_write(CS_PIN, LOW)
-#define CS_HIGH  bcm2835_gpio_write(CS_PIN, HIGH)
-#define CHAR(x)  reinterpret_cast<char*>(x)
+/* 信号拉低拉高 */
+inline void CS_LOW() {
+    bcm2835_gpio_write(CS_PIN, LOW);
+}
+
+inline void CS_HIGH() {
+    bcm2835_gpio_write(CS_PIN, HIGH);
+}
+
+/* 类型转换 */
+template<typename D>
+inline char* to_char(D x) {
+    return reinterpret_cast<char*>(x);
+}
 
 class ADIS16505 {
 public:
@@ -77,9 +88,9 @@ public:
         gyro_raw[0] = ((int32_t(x_g_o) << 16) + int32_t(x_g_l)) * M_PI / 180.0 / GYRO_SENSITIVITY;
         gyro_raw[1] = ((int32_t(y_g_o) << 16) + int32_t(y_g_l)) * M_PI / 180.0 / GYRO_SENSITIVITY;
         gyro_raw[2] = ((int32_t(z_g_o) << 16) + int32_t(z_g_l)) * M_PI / 180.0 / GYRO_SENSITIVITY;
-        acc_raw[0] = ((int32_t(x_a_o) << 16) + int32_t(x_a_l)) * G_ACCL / ACCL_SENSITIVITY;
-        acc_raw[1] = ((int32_t(y_a_o) << 16) + int32_t(y_a_l)) * G_ACCL / ACCL_SENSITIVITY;
-        acc_raw[2] = ((int32_t(z_a_o) << 16) + int32_t(z_a_l)) * G_ACCL / ACCL_SENSITIVITY;
+        acc_raw[0] = ((int32_t(x_a_o) << 16) + int32_t(x_a_l)) / ACCL_SENSITIVITY;
+        acc_raw[1] = ((int32_t(y_a_o) << 16) + int32_t(y_a_l)) / ACCL_SENSITIVITY;
+        acc_raw[2] = ((int32_t(z_a_o) << 16) + int32_t(z_a_l)) / ACCL_SENSITIVITY;
     }
 private:
     /* 初始化设备 */
@@ -96,17 +107,17 @@ private:
         // bcm2835_gpio_set(CS_PIN); 这里是设备未选中，我感觉是可以不用的
 
         /* 设备重启 */
-        CS_LOW;
+        CS_LOW();
         bcm2835_delay(500);
-        CS_HIGH;
+        CS_HIGH();
         bcm2835_delay(500);
 
         // 启动后先读PROD_ID
         uint8_t rdat[2] = {0, 0};
         uint8_t wd[2] = {PROD_ID, 0x00};
-        CS_LOW;
-        bcm2835_spi_transfernb(reinterpret_cast<char*>(wd), reinterpret_cast<char*>(rdat), sizeof(wd)); // 发送和接收数据
-        CS_HIGH;
+        CS_LOW();
+        bcm2835_spi_transfernb(to_char(wd), to_char(rdat), sizeof(wd)); // 发送和接收数据
+        CS_HIGH();
         bcm2835_delayMicroseconds(tSTALL);
         
         bool isConnected = adisIsConnected();
@@ -132,13 +143,13 @@ private:
         uint8_t tx_data2[2] = {txBuf2 >> 8, txBuf2 & 0xFF};
 
         uint8_t rdat[2] = {0, 0};
-        CS_LOW;
-        bcm2835_spi_transfernb(reinterpret_cast<char*>(tx_data1),reinterpret_cast<char*>(rdat), sizeof(tx_data1));
-        CS_HIGH;
+        CS_LOW();
+        bcm2835_spi_transfernb(to_char(tx_data1),to_char(rdat), sizeof(tx_data1));
+        CS_HIGH();
         bcm2835_delayMicroseconds(tSTALL);  
-        CS_LOW;
-        bcm2835_spi_transfernb(reinterpret_cast<char*>(tx_data2),reinterpret_cast<char*>(rdat), sizeof(tx_data2));
-        CS_HIGH;
+        CS_LOW();
+        bcm2835_spi_transfernb(to_char(tx_data2),to_char(rdat), sizeof(tx_data2));
+        CS_HIGH();
         bcm2835_delayMicroseconds(tSTALL);
     }
     
@@ -156,9 +167,9 @@ private:
 
         uint8_t wd[2] = {addr, 0x00};
         uint8_t rdat[2] = {0, 0};
-        CS_LOW;
-        bcm2835_spi_transfernb(reinterpret_cast<char*>(wd), reinterpret_cast<char*>(rdat), sizeof(wd));
-        CS_HIGH;
+        CS_LOW();
+        bcm2835_spi_transfernb(to_char(wd), to_char(rdat), sizeof(wd));
+        CS_HIGH();
         bcm2835_delayMicroseconds(tSTALL);
         uint16_t val = (rdat[0] << 8) | rdat[1];
         return val;
@@ -168,16 +179,16 @@ private:
     bool adisSet32bitBurstConfig() {
         uint8_t wd[2] = {MSC_CTRL, 0x00};
         uint8_t rdat[2] = {0, 0};
-        CS_LOW;
-        bcm2835_spi_transfernb(reinterpret_cast<char*>(wd), reinterpret_cast<char*>(rdat), sizeof(wd));
-        CS_HIGH;
+        CS_LOW();
+        bcm2835_spi_transfernb(to_char(wd), to_char(rdat), sizeof(wd));
+        CS_HIGH();
         bcm2835_delayMicroseconds(tSTALL);
         uint16_t tmp = (rdat[0] << 8) | rdat[1];
         tmp |= 1 << 9;
 	    adisWriteReg(MSC_CTRL, tmp);
-        CS_LOW;
-        bcm2835_spi_transfernb(reinterpret_cast<char*>(wd), reinterpret_cast<char*>(rdat), sizeof(wd));
-        CS_HIGH;
+        CS_LOW();
+        bcm2835_spi_transfernb(to_char(wd), to_char(rdat), sizeof(wd));
+        CS_HIGH();
         bcm2835_delayMicroseconds(tSTALL);
         uint16_t tmp_ = adisReadReg(MSC_CTRL);
         // This delay allows the setting to take hold
@@ -210,9 +221,9 @@ private:
         uint8_t rdat[2] = {0, 0};
         uint8_t wd[2] = {(addr >> 8) & 0xFF, addr & 0xFF};
 
-        CS_LOW;
-        bcm2835_spi_transfernb(reinterpret_cast<char*>(wd), reinterpret_cast<char*>(rdat), sizeof(wd));
-        CS_HIGH;
+        CS_LOW();
+        bcm2835_spi_transfernb(to_char(wd), to_char(rdat), sizeof(wd));
+        CS_HIGH();
 
         uint16_t rBuf = (rdat[0] << 8) | rdat[1];
         return rBuf;      
@@ -225,9 +236,9 @@ private:
 	    txBuf = ((regAddr | 0x80) << 8) | (regData & 0xFF);
 
 	    /* 向外部设备写入数据，将之前组合好的数据字 txBuf 发送到设备 */ 
-	    CS_LOW;
+	    CS_LOW();
 	    spiWriteWord(txBuf);
-	    CS_HIGH;
+	    CS_HIGH();
 
 	    bcm2835_delay(tSTALL);
 
@@ -249,9 +260,10 @@ private:
         adisWriteReg(FILT_CTRL, dat);
         uint8_t wd[2] = {FILT_CTRL, 0x00};
         uint8_t rdat[2] = {0, 0};
-        CS_LOW;
-        bcm2835_spi_transfernb(reinterpret_cast<char*>(wd), reinterpret_cast<char*>(rdat), sizeof(wd));
-        CS_HIGH; 
+        CS_LOW();
+        bcm2835_spi_transfernb(to_char(wd), to_char(rdat), sizeof(wd));
+        CS_HIGH(); 
+        bcm2835_delayMicroseconds(tSTALL);
         auto tmp = adisReadReg(FILT_CTRL);
 	    return true;
     }
@@ -378,9 +390,10 @@ private:
         // adisRegWrite16bit(DEC_RATE, n);
         uint8_t wd[2] = {DEC_RATE, 0x00};
         uint8_t rdat[2] = {0, 0};
-        CS_LOW;
-        bcm2835_spi_transfernb(reinterpret_cast<char*>(wd), reinterpret_cast<char*>(rdat), sizeof(wd));
-        CS_HIGH; 
+        CS_LOW();
+        bcm2835_spi_transfernb(to_char(wd), to_char(rdat), sizeof(wd));
+        CS_HIGH();
+        bcm2835_delayMicroseconds(tSTALL);
         auto tmp = adisReadReg(DEC_RATE);
 
         /* 输出频率 */

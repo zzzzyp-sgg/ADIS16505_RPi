@@ -13,6 +13,11 @@
 /* 定义一个引脚 */
 #define ADI_PIN RPI_GPIO_P1_07
 
+template<typename D>
+inline char* to_char(D x) {
+    return reinterpret_cast<char*>(x);
+}
+
 int main(int argc, char **argv) {
     if (!bcm2835_init()){
       printf("bcm2835_init failed. Are you running as root??\n");
@@ -50,14 +55,14 @@ int main(int argc, char **argv) {
     // 启动后先随便读一个
     bcm2835_gpio_write(ADI_PIN, LOW);
     /* 这里发送的数据再下一次传输才会收到 */
-    bcm2835_spi_transfernb(reinterpret_cast<char*>(wd), reinterpret_cast<char*>(rdat), sizeof(wd)); // 发送和接收数据
+    bcm2835_spi_transfernb(to_char(wd), to_char(rdat), sizeof(wd)); // 发送和接收数据
     bcm2835_gpio_write(ADI_PIN, HIGH);
     bcm2835_delayMicroseconds(16);
     /*
     for (int i = 0; i < 10; i++) {
       // 循环读取，检查下有没有问题
       bcm2835_gpio_write(ADI_PIN, LOW);
-      bcm2835_spi_transfernb(reinterpret_cast<char*>(wd), reinterpret_cast<char*>(rdat), sizeof(wd)); // 发送和接收数据
+      bcm2835_spi_transfernb(to_char(wd), to_char(rdat), sizeof(wd)); // 发送和接收数据
       bcm2835_gpio_write(ADI_PIN, HIGH);
       bcm2835_delayMicroseconds(16);
 
@@ -75,25 +80,25 @@ int main(int argc, char **argv) {
     uint16_t txBuf2 = ((0x5D | 0x80) << 8) | (0 & 0xFF);
     uint8_t tx_data2[2] = {txBuf2 >> 8, txBuf2 & 0xFF};
     bcm2835_gpio_write(ADI_PIN, LOW);
-    bcm2835_spi_transfernb(reinterpret_cast<char*>(tx_data1),reinterpret_cast<char*>(rdat), sizeof(tx_data1));
+    bcm2835_spi_transfernb(to_char(tx_data1),to_char(rdat), sizeof(tx_data1));
     bcm2835_gpio_write(ADI_PIN, HIGH);
     bcm2835_delayMicroseconds(16);
     uint16_t prod_id = (rdat[0] << 8) | rdat[1];
     printf("PROD_ID is:%u\n", prod_id);    
     bcm2835_gpio_write(ADI_PIN, LOW);
-    bcm2835_spi_transfernb(reinterpret_cast<char*>(tx_data2),reinterpret_cast<char*>(rdat), sizeof(tx_data2));
+    bcm2835_spi_transfernb(to_char(tx_data2),to_char(rdat), sizeof(tx_data2));
     bcm2835_gpio_write(ADI_PIN, HIGH);
     bcm2835_delayMicroseconds(16);
 
     /* 读FILT_CRTL */
     bcm2835_gpio_write(ADI_PIN, LOW);
-    bcm2835_spi_transfernb(reinterpret_cast<char*>(fd), reinterpret_cast<char*>(rdat), sizeof(fd));
+    bcm2835_spi_transfernb(to_char(fd), to_char(rdat), sizeof(fd));
     bcm2835_gpio_write(ADI_PIN, HIGH);
     bcm2835_delayMicroseconds(16);
 
 
     bcm2835_gpio_write(ADI_PIN, LOW);
-    bcm2835_spi_transfernb(reinterpret_cast<char*>(zd), reinterpret_cast<char*>(rdat), sizeof(zd));
+    bcm2835_spi_transfernb(to_char(zd), to_char(rdat), sizeof(zd));
     bcm2835_gpio_write(ADI_PIN, HIGH);
     bcm2835_delayMicroseconds(16);
     uint16_t filt_ctrl = (rdat[0] << 8) | rdat[1];
